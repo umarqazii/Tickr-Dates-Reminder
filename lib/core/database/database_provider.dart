@@ -22,3 +22,10 @@ Future<Isar> initIsarDatabase() async {
 
   return isar;
 }
+
+/// Removes all events from local storage (e.g. when switching accounts).
+Future<void> wipeAllLocalTickrData(Isar isar) async {
+  await isar.writeTxn(() async {
+    await isar.tickrEvents.clear();
+  });
+}

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/event_repository.dart';
 import '../domain/tickr_event.dart';
 
+
 // 1. The Raw Data Stream (Already existing)
 final eventsListProvider = StreamProvider<List<TickrEvent>>((ref) {
   final repository = ref.watch(eventRepositoryProvider);

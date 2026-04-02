@@ -45,6 +45,10 @@ class NotificationService {
     _isInitialized = true;
   }
 
+  Future<void> cancelAllEventNotifications() async {
+    await _prefs.cancelAll();
+  }
+
   // Wipes all existing notifications and recalculates the next 50
   Future<void> rescheduleAll(List<TickrEvent> activeEvents) async {
     await _prefs.cancelAll(); // Clean slate
@@ -64,7 +68,7 @@ class NotificationService {
       final nextDate = event.nextOccurrence;
 
       // We will set alerts to fire at 9:00 AM local time
-      final targetTime = DateTime(nextDate.year, nextDate.month, nextDate.day, 12, 0);
+      final targetTime = DateTime(nextDate.year, nextDate.month, nextDate.day, 11, 55);
       // final targetTime = DateTime.now().add(const Duration(minutes: 1));
       // 7 Days Before
       final sevenDaysBefore = targetTime.subtract(const Duration(days: 7));

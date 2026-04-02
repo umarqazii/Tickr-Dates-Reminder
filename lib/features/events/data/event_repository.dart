@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
 import 'package:uuid/uuid.dart';
-
+import '../../../core/sync/sync_service.dart';
 import '../../../core/database/database_provider.dart';
 import '../domain/tickr_event.dart';
 import '../../../core/notifications/notification_service.dart';
@@ -10,18 +10,16 @@ import '../../../core/notifications/notification_service.dart';
 class EventRepository {
   final Isar _isar;
   final NotificationService _notifications;
-  EventRepository(this._isar, this._notifications);
+  final SyncService _syncService;
+  EventRepository(this._isar, this._notifications, this._syncService);
 
   // --- FETCHING ---
   // We return a Stream instead of a Future. This is Isar's superpower.
   // Whenever data changes in the database, this stream automatically pushes
   // the new list of events. Riverpod will use this to update the UI instantly.
   Stream<List<TickrEvent>> watchActiveEvents() {
-    return _isar.tickrEvents
-        .where()
-        .filter()
-        .isDeletedEqualTo(false) // Don't show soft-deleted items in the UI
-        .watch(fireImmediately: true);
+    // Only watch events that are NOT soft-deleted
+    return _isar.tickrEvents.filter().isDeletedEqualTo(false).watch(fireImmediately: true);
   }
 
   // --- SAVING ---
@@ -50,6 +48,7 @@ class EventRepository {
     });
 
     await _syncNotifications();
+    _syncService.sync();
   }
 
   // --- UPDATING ---
@@ -73,6 +72,7 @@ class EventRepository {
     });
 
     await _syncNotifications();
+    _syncService.sync();
   }
 
   // --- DELETING ---
@@ -92,6 +92,7 @@ class EventRepository {
       });
 
       await _syncNotifications();
+      _syncService.sync();
     }
   }
   Future<void> _syncNotifications() async {
@@ -107,5 +108,6 @@ final eventRepositoryProvider = Provider<EventRepository>((ref) {
   // We read the Isar instance from the provider we made in the previous step
   final isar = ref.watch(isarProvider);
   final notifications = ref.watch(notificationServiceProvider); // Watch the new service
-  return EventRepository(isar, notifications);
+  final syncService = ref.watch(syncServiceProvider);
+  return EventRepository(isar, notifications, syncService);
 });

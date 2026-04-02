@@ -16,14 +16,21 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 
-// 1. WE MOVED THIS UP: Intercept and fix the namespaces FIRST
+// 1. ALL AFTER-EVALUATE HOOKS COMBINED HERE (Must be before evaluationDependsOn)
 subprojects {
     afterEvaluate {
+        // Fix missing namespaces for older plugins
         plugins.withId("com.android.library") {
-            val androidExt = extensions.findByName("android") as? com.android.build.gradle.LibraryExtension
-            if (androidExt != null && androidExt.namespace == null) {
-                androidExt.namespace = project.group.toString().ifEmpty { "com.example.${project.name}" }
+            val libraryExt = extensions.findByName("android") as? com.android.build.gradle.LibraryExtension
+            if (libraryExt != null && libraryExt.namespace == null) {
+                libraryExt.namespace = project.group.toString().ifEmpty { "com.example.${project.name}" }
             }
+        }
+
+        // Force all Android plugins to use SDK 36 to fix the lStar error
+        val baseAndroidExt = extensions.findByName("android") as? com.android.build.gradle.BaseExtension
+        baseAndroidExt?.apply {
+            compileSdkVersion(36)
         }
     }
 }

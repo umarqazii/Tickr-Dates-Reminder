@@ -100,6 +100,9 @@ class EventRepository {
     final events = await _isar.tickrEvents.filter().isDeletedEqualTo(false).findAll();
     await _notifications.rescheduleAll(events);
   }
+
+  /// Reschedules local notifications from Isar (e.g. after the user changes reminder time).
+  Future<void> rescheduleNotificationsFromStorage() => _syncNotifications();
 }
 
 // 2. The Riverpod Provider

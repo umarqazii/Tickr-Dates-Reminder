@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_theme.dart';
 import 'core/database/database_provider.dart';
 import 'core/notifications/notification_service.dart';
+import 'core/preferences/shared_preferences_provider.dart';
 import 'features/events/presentation/main_nav_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'features/auth/presentation/auth_controller.dart';
@@ -11,10 +13,11 @@ import 'features/auth/presentation/login_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final isarDb = await initIsarDatabase();
+  final sharedPreferences = await SharedPreferences.getInstance();
 
   // Initialize the notification engine
   final notificationService = NotificationService();
-  await notificationService.init();
+  await notificationService.init(sharedPreferences);
 
   await Supabase.initialize(
     url: 'https://rxmqevgbhsxyobcmmtsi.supabase.co',
@@ -25,6 +28,7 @@ void main() async {
     ProviderScope(
       overrides: [
         isarProvider.overrideWithValue(isarDb),
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
         // Override the notification provider with our initialized instance
         notificationServiceProvider.overrideWithValue(notificationService),
       ],

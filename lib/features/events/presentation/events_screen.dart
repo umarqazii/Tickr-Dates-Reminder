@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/database/database_provider.dart';
-import '../../../core/notifications/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../auth/presentation/auth_controller.dart';
 import '../data/event_repository.dart';
 import '../domain/tickr_event.dart';
 import 'events_controller.dart';
 import 'widgets/add_event_sheet.dart';
+import 'widgets/tickr_home_app_bar.dart';
+import 'widgets/tickr_main_drawer.dart';
 
 String _ordinalAnniversary(int n) {
   if (n % 100 >= 11 && n % 100 <= 13) return '${n}th';
@@ -33,34 +32,8 @@ class EventsScreen extends ConsumerWidget {
     final eventsAsyncValue = ref.watch(eventsListProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primary, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Text('Tickr'),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Sign out',
-            onPressed: () async {
-              await signOutFromApp(
-                isar: ref.read(isarProvider),
-                notificationService: ref.read(notificationServiceProvider),
-              );
-            },
-            icon: const Icon(Icons.logout_rounded),
-          ),
-        ],
-      ),
+      drawer: const TickrMainDrawer(),
+      appBar: const TickrHomeAppBar(),
       body: eventsAsyncValue.when(
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),

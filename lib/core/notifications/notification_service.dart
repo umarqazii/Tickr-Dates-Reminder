@@ -1,10 +1,12 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../../features/events/domain/tickr_event.dart';
+import 'reminder_prefs_keys.dart';
 
 final notificationServiceProvider = Provider<NotificationService>((ref) {
   return NotificationService();
@@ -13,9 +15,11 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 class NotificationService {
   final FlutterLocalNotificationsPlugin _prefs = FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
+  SharedPreferences? _sharedPreferences;
 
-  Future<void> init() async {
+  Future<void> init([SharedPreferences? sharedPreferences]) async {
     if (_isInitialized) return;
+    _sharedPreferences = sharedPreferences;
 
     // 1. Initialize Timezones (Updated for flutter_timezone v5.0+)
     tz.initializeTimeZones();
@@ -45,6 +49,13 @@ class NotificationService {
     _isInitialized = true;
   }
 
+  ({int hour, int minute}) _reminderClock() {
+    final prefs = _sharedPreferences;
+    final hour = prefs?.getInt(ReminderPrefsKeys.hour) ?? 11;
+    final minute = prefs?.getInt(ReminderPrefsKeys.minute) ?? 55;
+    return (hour: hour, minute: minute);
+  }
+
   Future<void> cancelAllEventNotifications() async {
     await _prefs.cancelAll();
   }
@@ -67,8 +78,9 @@ class NotificationService {
 
       final nextDate = event.nextOccurrence;
 
-      // We will set alerts to fire at 9:00 AM local time
-      final targetTime = DateTime(nextDate.year, nextDate.month, nextDate.day, 11, 55);
+      final clock = _reminderClock();
+      final targetTime =
+          DateTime(nextDate.year, nextDate.month, nextDate.day, clock.hour, clock.minute);
       // final targetTime = DateTime.now().add(const Duration(minutes: 1));
       // 7 Days Before
       final sevenDaysBefore = targetTime.subtract(const Duration(days: 7));

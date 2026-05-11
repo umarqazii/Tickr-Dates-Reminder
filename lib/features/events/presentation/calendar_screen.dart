@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../../core/theme/app_colors.dart';
+import 'widgets/tickr_home_app_bar.dart';
+import 'widgets/tickr_main_drawer.dart';
 import '../domain/tickr_event.dart';
 import 'events_controller.dart';
 import 'widgets/add_event_sheet.dart';
@@ -46,9 +48,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Calendar'),
-      ),
+      drawer: const TickrMainDrawer(),
+      appBar: const TickrHomeAppBar(),
       body: Column(
         children: [
           Container(

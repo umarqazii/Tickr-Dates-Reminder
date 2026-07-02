@@ -25,26 +25,30 @@ String _ordinalAnniversary(int n) {
   }
 }
 
+String? _profilePhotoUrl(Map<String, dynamic>? meta) {
+  if (meta == null) return null;
+  final avatar = meta['avatar_url'] as String?;
+  final picture = meta['picture'] as String?;
+  return avatar?.isNotEmpty == true ? avatar : (picture?.isNotEmpty == true ? picture : null);
+}
+
 class EventsScreen extends ConsumerWidget {
   const EventsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventsAsyncValue = ref.watch(eventsListProvider);
-
+    final auth = ref.watch(authStateProvider);
+    final user = auth.valueOrNull?.session?.user;
+    final rawMeta = user?.userMetadata;
+    final meta = rawMeta != null ? Map<String, dynamic>.from(rawMeta) : null;
+    final photoUrl = _profilePhotoUrl(meta);
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primary, size: 22),
-            ),
-            const SizedBox(width: 12),
+            _AppBarAvatar(photoUrl: photoUrl),
+            const SizedBox(width: 10),
             const Text('Tickr'),
           ],
         ),
@@ -245,6 +249,43 @@ class EventsScreen extends ConsumerWidget {
 
           return ListView(padding: const EdgeInsets.only(bottom: 100), children: listItems);
         },
+      ),
+    );
+  }
+}
+
+class _AppBarAvatar extends StatelessWidget {
+  const _AppBarAvatar({required this.photoUrl});
+
+  final String? photoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = 20.0;
+    const size = radius * 2;
+    final url = photoUrl;
+    if (url == null || url.isEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+        child: const Icon(Icons.person_rounded, size: 36, color: AppColors.primary),
+      );
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+      child: ClipOval(
+        child: Image.network(
+          url,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => const Icon(
+            Icons.person_rounded,
+            size: 20,
+            color: AppColors.primary,
+          ),
+        ),
       ),
     );
   }

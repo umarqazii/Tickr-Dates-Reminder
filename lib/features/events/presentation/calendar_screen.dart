@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../../../core/database/database_provider.dart';
+import '../../../core/notifications/notification_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../domain/tickr_event.dart';
 import 'events_controller.dart';
 import 'widgets/add_event_sheet.dart';
@@ -12,6 +15,13 @@ final selectedDateProvider = StateProvider<DateTime>((ref) {
   final now = DateTime.now();
   return DateTime(now.year, now.month, now.day);
 });
+
+String? _profilePhotoUrl(Map<String, dynamic>? meta) {
+  if (meta == null) return null;
+  final avatar = meta['avatar_url'] as String?;
+  final picture = meta['picture'] as String?;
+  return avatar?.isNotEmpty == true ? avatar : (picture?.isNotEmpty == true ? picture : null);
+}
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -42,15 +52,50 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final eventsAsync = ref.watch(eventsListProvider);
     final allEvents = eventsAsync.valueOrNull ?? [];
     final selectedDayEvents = _getEventsForDay(selectedDay, allEvents);
+    final auth = ref.watch(authStateProvider);
+    final user = auth.valueOrNull?.session?.user;
+    final rawMeta = user?.userMetadata;
+    final meta = rawMeta != null ? Map<String, dynamic>.from(rawMeta) : null;
+    final photoUrl = _profilePhotoUrl(meta);
 
     final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar'),
+        title: Row(
+          children: [
+            _AppBarAvatar(photoUrl: photoUrl),
+            const SizedBox(width: 10),
+            const Text('Tickr'),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Sign out',
+            onPressed: () async {
+              await signOutFromApp(
+                isar: ref.read(isarProvider),
+                notificationService: ref.read(notificationServiceProvider),
+              );
+            },
+            icon: const Icon(Icons.logout_rounded),
+          ),
+        ],
       ),
       body: Column(
         children: [
+          Align(
+            alignment: Alignment.topLeft,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 26, 20, 10),
+              child: const Text('CALENDAR', style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                color: AppColors.textSecondary,
+              )),
+            ),
+          ),
           Container(
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             decoration: BoxDecoration(
@@ -232,6 +277,43 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AppBarAvatar extends StatelessWidget {
+  const _AppBarAvatar({required this.photoUrl});
+
+  final String? photoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    const radius = 20.0;
+    const size = radius * 2;
+    final url = photoUrl;
+    if (url == null || url.isEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+        child: const Icon(Icons.person_rounded, size: 36, color: AppColors.primary),
+      );
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+      child: ClipOval(
+        child: Image.network(
+          url,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => const Icon(
+            Icons.person_rounded,
+            size: 20,
+            color: AppColors.primary,
+          ),
+        ),
       ),
     );
   }

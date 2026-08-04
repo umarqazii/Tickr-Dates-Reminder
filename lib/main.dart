@@ -41,6 +41,16 @@ class TickrApp extends ConsumerWidget {
     // Watch the authentication stream
     final authState = ref.watch(authStateProvider);
 
+    // If the auth stream hard-fails (used refresh token, etc.), scrub the
+    // corrupted local session once so the next launch doesn't repeat the error.
+    ref.listen(authStateProvider, (previous, next) {
+      next.whenOrNull(
+        error: (err, stack) {
+          Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
+        },
+      );
+    });
+
     return MaterialApp(
       title: 'Tickr',
       debugShowCheckedModeBanner: false,
@@ -54,7 +64,8 @@ class TickrApp extends ConsumerWidget {
           }
           return const LoginScreen();
         },
-        error: (err, stack) => Center(child: Text('Error: $err')),
+        // Safety net: never show a raw auth exception (e.g. used refresh token).
+        error: (err, stack) => const LoginScreen(),
         loading: () => const LoginScreen(),
       ),
     );

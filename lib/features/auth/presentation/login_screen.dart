@@ -26,14 +26,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         serverClientId: kGoogleWebServerClientId,
       );
 
+      // Clear any previously authorized Google account so Credential Manager
+      // can show the account chooser instead of silently reusing the last one.
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {}
+
       final googleUser = await googleSignIn.authenticate();
 
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final googleAuth = await googleUser.authentication;
+      final googleAuth = googleUser.authentication;
       final idToken = googleAuth.idToken;
 
       if (idToken == null) {

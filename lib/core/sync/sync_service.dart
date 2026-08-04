@@ -138,22 +138,30 @@ class SyncService {
   }
 
   Future<void> _pullRemoteChanges(String userId) async {
-    // Get all events for this user from the cloud
+    // Get all events for this user from the cloud (including soft-deleted)
     final remoteData = await _supabase.from('tickr_events').select().eq('user_id', userId);
+
+    final remoteSyncIds = <String>{};
 
     await _isar.writeTxn(() async {
       for (final remote in remoteData) {
         final syncId = remote['sync_id'] as String;
+        remoteSyncIds.add(syncId);
         final remoteUpdatedAt = DateTime.parse(remote['updated_at']).toLocal();
+        final remoteDeleted = remote['is_deleted'] == true;
 
-        // Check if we already have this event locally
         final localEvent = await _isar.tickrEvents.where().syncIdEqualTo(syncId).findFirst();
 
-        if (localEvent == null) {
-          // WE DON'T HAVE IT: It was created on another device.
-          // Save it locally unless it was marked as deleted in the cloud.
-          if (remote['is_deleted'] == true) continue;
+        if (remoteDeleted) {
+          // Soft-deleted in the cloud — drop any non-pending-delete local copy.
+          if (localEvent != null && !localEvent.isDeleted) {
+            await _isar.tickrEvents.delete(localEvent.id);
+          }
+          continue;
+        }
 
+        if (localEvent == null) {
+          // Created on another device — inject locally.
           final newEvent = TickrEvent()
             ..syncId = syncId
             ..title = remote['title']
@@ -162,7 +170,7 @@ class SyncService {
             ..notes = remote['notes']
             ..createdAt = DateTime.parse(remote['created_at']).toLocal()
             ..updatedAt = remoteUpdatedAt
-            ..syncStatus = 1 // Already synced because it came from the cloud
+            ..syncStatus = 1
             ..isDeleted = false;
 
           await _isar.tickrEvents.put(newEvent);
@@ -172,26 +180,30 @@ class SyncService {
             continue;
           }
 
-          // WE DO HAVE IT: Conflict Resolution!
-          // If the cloud version is newer than our local version, overwrite local.
+          // Cloud is newer — overwrite local.
           if (remoteUpdatedAt.isAfter(localEvent.updatedAt)) {
+            localEvent
+              ..title = remote['title']
+              ..eventDate = DateTime.parse(remote['event_date']).toLocal()
+              ..isRecurring = remote['is_recurring']
+              ..notes = remote['notes']
+              ..updatedAt = remoteUpdatedAt
+              ..syncStatus = 1;
 
-            if (remote['is_deleted'] == true) {
-              // It was deleted on another device, delete it here too
-              await _isar.tickrEvents.delete(localEvent.id);
-            } else {
-              // It was updated on another device, update it here
-              localEvent
-                ..title = remote['title']
-                ..eventDate = DateTime.parse(remote['event_date']).toLocal()
-                ..isRecurring = remote['is_recurring']
-                ..notes = remote['notes']
-                ..updatedAt = remoteUpdatedAt
-                ..syncStatus = 1;
-
-              await _isar.tickrEvents.put(localEvent);
-            }
+            await _isar.tickrEvents.put(localEvent);
           }
+        }
+      }
+
+      // Hard-deleted from Supabase (or never present): prune fully-synced locals
+      // so dashboard deletes and missing remotes can't leave ghost duplicates.
+      // Leave syncStatus == 0 alone — those are not confirmed in the cloud yet.
+      final locals = await _isar.tickrEvents.where().findAll();
+      for (final local in locals) {
+        if (local.isDeleted) continue;
+        if (local.syncStatus != 1) continue;
+        if (!remoteSyncIds.contains(local.syncId)) {
+          await _isar.tickrEvents.delete(local.id);
         }
       }
     });

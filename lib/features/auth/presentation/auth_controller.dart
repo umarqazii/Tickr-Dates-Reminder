@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:isar/isar.dart';
@@ -15,11 +16,25 @@ final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
 });
 
-// 2. This stream listens to Supabase. If the user logs in or out,
-// this stream instantly updates our UI.
-final authStateProvider = StreamProvider<AuthState>((ref) {
+// 2. Auth stream. On irrecoverable session errors (e.g. refresh_token_already_used
+// after Android backup restores a dead session), clear local auth and emit
+// signedOut so the UI shows Login — never a raw error screen.
+final authStateProvider = StreamProvider<AuthState>((ref) async* {
   final supabase = ref.watch(supabaseClientProvider);
-  return supabase.auth.onAuthStateChange;
+
+  try {
+    await for (final state in supabase.auth.onAuthStateChange) {
+      yield state;
+    }
+  } catch (error, stack) {
+    debugPrint('Auth stream error: $error\n$stack');
+    try {
+      await supabase.auth.signOut(scope: SignOutScope.local);
+    } catch (e) {
+      debugPrint('Failed to clear broken local session: $e');
+    }
+    yield const AuthState(AuthChangeEvent.signedOut, null);
+  }
 });
 
 /// Clears local Isar data and notifications, then Supabase session and Google Sign-In

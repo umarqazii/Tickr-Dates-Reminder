@@ -49,6 +49,39 @@ class NotificationService {
     await _prefs.cancelAll();
   }
 
+  // --- SHORT-TERM TASKS ---
+  // Tasks are scheduled/cancelled individually and NEVER via cancelAll(), so that
+  // rescheduling events (which does call cancelAll) can't wipe task reminders and
+  // vice-versa. Their notification IDs live in a high range that can't collide
+  // with the event scheme of (event.id * 10) + {0,1,7}.
+  static const int _taskNotificationIdBase = 1000000000;
+
+  int _taskNotificationId(int taskId) => _taskNotificationIdBase + taskId;
+
+  /// Schedules a single reminder that fires exactly at [dueDateTime].
+  /// If the due time is in the past, any existing reminder is cancelled instead.
+  Future<void> scheduleTaskNotification({
+    required int taskId,
+    required String title,
+    String? body,
+    required DateTime dueDateTime,
+  }) async {
+    await cancelTaskNotification(taskId);
+
+    if (!dueDateTime.isAfter(DateTime.now())) return;
+
+    await _schedule(
+      id: _taskNotificationId(taskId),
+      title: title,
+      body: (body != null && body.trim().isNotEmpty) ? body : 'Reminder',
+      scheduledDate: dueDateTime,
+    );
+  }
+
+  Future<void> cancelTaskNotification(int taskId) async {
+    await _prefs.cancel(id: _taskNotificationId(taskId));
+  }
+
   // Wipes all existing notifications and recalculates the next 50
   Future<void> rescheduleAll(List<TickrEvent> activeEvents) async {
     await _prefs.cancelAll(); // Clean slate

@@ -5,6 +5,8 @@ import 'calendar_screen.dart';
 import 'events_screen.dart';
 import 'widgets/add_event_sheet.dart';
 import '../../../core/sync/sync_service.dart';
+import '../../tasks/presentation/tasks_screen.dart';
+import '../../tasks/presentation/widgets/add_task_sheet.dart';
 
 final bottomNavIndexProvider = StateProvider<int>((ref) => 0);
 
@@ -34,14 +36,21 @@ class _MainNavScreenState extends ConsumerState<MainNavScreen> {
     final screens = [
       const EventsScreen(),
       const CalendarScreen(),
+      const TasksScreen(),
     ];
+
+    // The Tasks tab (index 2) adds a task; every other tab adds an event.
+    const tasksTabIndex = 2;
+    final isTasksTab = currentIndex == tasksTabIndex;
 
     return Scaffold(
       body: screens[currentIndex],
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => showAddEventSheet(context),
-        child: const Icon(Icons.add_rounded, size: 28),
+      floatingActionButtonLocation: FloatingActionButtonLocation.miniEndFloat,
+      floatingActionButton: FloatingActionButton.small(
+        onPressed: () => isTasksTab
+            ? showAddTaskSheet(context)
+            : showAddEventSheet(context),
+        child: const Icon(Icons.add_rounded, size: 22),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
@@ -58,6 +67,11 @@ class _MainNavScreenState extends ConsumerState<MainNavScreen> {
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Calendar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.checklist_outlined),
+            selectedIcon: Icon(Icons.checklist_rounded),
+            label: 'Tasks',
           ),
         ],
       ),
